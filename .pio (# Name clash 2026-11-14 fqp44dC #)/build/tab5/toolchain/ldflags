@@ -1,0 +1,3 @@
+-Wl,-Map=C:/Users/Chris/Documents/Etude_Inge/SEE5/Radiocommunication_CommunicationSansFil/TAB_HSE/Code/TAB_HSE/.pio/build/tab5/firmware.map
+-nostartfiles
+-fno-rtti
