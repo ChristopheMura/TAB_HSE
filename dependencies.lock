@@ -35,6 +35,44 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 0.5.3
+  espressif/dl_fft:
+    component_hash: 965be7152132b365061abf5fc5fc7b85e525f73b94a204cdda61cfe9572c0d77
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.8.0
+  espressif/esp-dl:
+    dependencies:
+    - matches:
+      - if: target in ["esp32", "esp32c2", "esp32c3", "esp32c6", "esp32p4", "esp32s2", "esp32s3"]
+        version: '>=5.3'
+      - if: target == esp32c5
+        version: '>=5.5'
+      - if: target == esp32s31
+        version: '>=6.0'
+      name: idf
+    - name: espressif/esp_new_jpeg
+      version: ^1
+    - name: espressif/dl_fft
+      version: '>=0.8.0'
+    source:
+      path: C:\dev\esp-dl\esp-dl
+      type: local
+    targets:
+    - esp32
+    - esp32c2
+    - esp32c3
+    - esp32c5
+    - esp32c6
+    - esp32p4
+    - esp32s2
+    - esp32s3
+    - esp32s31
+    version: 3.3.14
   espressif/esp_cam_sensor:
     component_hash: 80d07d12ac94b5bd02c0feb81a9d6500f8c2bcae1f2cbb6ad882e20c39a84d35
     dependencies:
@@ -193,6 +231,25 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 2.9.0
+  espressif/esp_new_jpeg:
+    component_hash: e1e7e6991193c41ed6c9fc386702aa7821433319e7aa9c3147cd3236310cd69c
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32s31
+    - esp32p4
+    - esp32c2
+    - esp32c3
+    - esp32c5
+    - esp32c6
+    - esp32c61
+    - esp32h4
+    version: 1.0.2
   espressif/esp_sccb_intf:
     component_hash: fcf118cd29a1caaf3b09bacd99975bc035c996b470474dfb950202c16e06d7b5
     dependencies:
@@ -332,6 +389,15 @@ dependencies:
     - esp32s31
     - linux
     version: 2.6.0
+  espressif/yolo26:
+    dependencies:
+    - name: espressif/esp-dl
+      override_path: ../../esp-dl
+      version: ~3.3.0
+    source:
+      path: C:\dev\esp-dl\models\yolo26
+      type: local
+    version: 0.1.0
   idf:
     source:
       type: idf
@@ -374,7 +440,8 @@ direct_dependencies:
 - espressif/esp_ipa
 - espressif/m5stack_tab5
 - espressif/usb_host_uvc
+- espressif/yolo26
 - idf
-manifest_hash: d90b3831a9e44660daec000a5ec3a18b88631852028b4c31fcde30b21fb5d9a9
+manifest_hash: e4513ff1b01b6ce5ef58e393d949102e7056c0c1e68f5286dad86d5059ea32b6
 target: esp32p4
 version: 2.0.0
