@@ -30,6 +30,17 @@ void ui_init(void);
 // Met a jour les indicateurs. Peut etre appelee depuis n'importe quelle tache.
 void ui_update(const ui_status_t *s);
 
+// Bouton rouge "Demande d'ouverture critique"
+typedef int (*ui_critical_cb_t)(void);
+void ui_set_critical_cb(ui_critical_cb_t cb);
+
+// Etat du reseau
+void ui_set_net_status(bool wifi_ok, bool mqtt_ok);
+
+// Reponse a la demande critique : prend le bandeau pendant UI_AUTOR_DISPLAY_S secondes.
+#define UI_AUTOR_DISPLAY_S 10
+void ui_show_autorisation(bool autorise);
+
 #ifdef __cplusplus
 }
 #endif

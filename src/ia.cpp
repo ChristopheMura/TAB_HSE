@@ -21,6 +21,8 @@
 #include "ppe_classes.hpp"
 #include "ppe_decision.h"
 #include "ui.h"
+#include "net.h"
+#include "net_config.h"
 
 static const char *TAG = "ia";
 static const char *MODEL_PARTITION = "model320";
@@ -29,6 +31,7 @@ static const int PPE_NUM_CLASSES = sizeof(ppe_classes) / sizeof(ppe_classes[0]);
 static dl::Model *s_model = nullptr;
 static YOLO26 *s_yolo = nullptr;
 static ppe::Decision s_decision;
+static ppe::Verdict s_last_published = ppe::Verdict::NO_PERSON;   // evite de republier a chaque inference
 
 // Image redressee et reduite par le PPA, remplie par le rappel video, consommee par la tache
 static uint8_t *s_snap = nullptr;
@@ -90,13 +93,15 @@ extern "C" int ia_init(void)
 
     auto outputs = s_model->get_outputs();
     auto it = outputs.find("one2one_p3_cls");
-    if (it == outputs.end()) {
+    if (it == outputs.end()) 
+    {
         ESP_LOGE(TAG, "Sortie one2one_p3_cls absente");
         return -1;
     }
     const int model_classes = it->second->shape[3];
     ESP_LOGI(TAG, "Classes dans le modele : %d, dans ppe_classes.hpp : %d", model_classes, PPE_NUM_CLASSES);
-    if (model_classes != PPE_NUM_CLASSES) {
+    if (model_classes != PPE_NUM_CLASSES) 
+    {
         ESP_LOGE(TAG, "DESACCORD : la liste de classes ne correspond pas au modele");
         return -1;
     }
@@ -107,7 +112,8 @@ extern "C" int ia_init(void)
 
 static void ia_task(void *)
 {
-    while (true) {
+    while (true) 
+    {
         xSemaphoreTake(s_frame_ready, portMAX_DELAY);
 
         dl::image::img_t img = {};
@@ -139,7 +145,8 @@ static void ia_task(void *)
         int n = snprintf(line, sizeof(line), "pre %lld | inf %lld | post %lld ms | %u det :",
                          (long long)((t1 - t0) / 1000), (long long)((t2 - t1) / 1000),
                          (long long)((t3 - t2) / 1000), (unsigned)results.size());
-        for (const auto &r : results) {
+        for (const auto &r : results) 
+        {
             if (n >= (int)sizeof(line) - 24) break;
             n += snprintf(line + n, sizeof(line) - n, " %s %.0f%%", ppe_classes[r.category], r.score * 100);
         }
@@ -154,11 +161,28 @@ static void ia_task(void *)
         }
         ESP_LOGI(TAG, "%s", line);
 
+        // Publication MQTT sur changement de verdict (une fois par personne et par resultat)
+        if (v == ppe::Verdict::NO_PERSON || v == ppe::Verdict::MULTI_PERSON) 
+        {
+            s_last_published = v;                         // la personne suivante declenchera une nouvelle publication
+        } 
+        else if ((v == ppe::Verdict::GRANTED || (NET_PUBLISH_ON_DENIED && v == ppe::Verdict::DENIED)) && v != s_last_published) 
+        {
+            const bool casque = s_decision.state(ppe::IT_HELMET) == ppe::State::PRESENT;
+            const bool gilet = s_decision.state(ppe::IT_VEST) == ppe::State::PRESENT;
+            const bool chaussures = s_decision.state(ppe::IT_BOOTS) == ppe::State::PRESENT;
+            if (net_publish_detection(casque, gilet, chaussures) == 0) 
+            {
+                s_last_published = v;                     // sinon on retentera a l'inference suivante
+            }
+        }
+
         // Mise a jour de l'interface
         ui_status_t st = {};
         st.person = (v == ppe::Verdict::NO_PERSON) ? UI_UNKNOWN :
                     (v == ppe::Verdict::MULTI_PERSON) ? UI_WARN : UI_OK;
-        for (int i = 0; i < ppe::IT_COUNT; i++) {
+        for (int i = 0; i < ppe::IT_COUNT; i++) 
+        {
             const ppe::State ps = s_decision.state((ppe::Item)i);
             st.items[i] = (ps == ppe::State::PRESENT) ? UI_OK : (ps == ppe::State::ABSENT) ? UI_BAD : UI_UNKNOWN;
             st.required[i] = s_decision.required((ppe::Item)i);
@@ -199,7 +223,7 @@ extern "C" int ia_start(void)
 
 static ppa_srm_rotation_angle_t camera_rotation(void)
 {
-    switch (BSP_CAMERA_ROTATION)
+    switch (BSP_CAMERA_ROTATION) 
     {
         case 90:  return PPA_SRM_ROTATION_ANGLE_90;
         case 180: return PPA_SRM_ROTATION_ANGLE_180;
@@ -226,11 +250,11 @@ extern "C" void ia_submit_frame(const uint8_t *rgb565, uint32_t w, uint32_t h)
     const uint32_t out_h = (uint32_t)(up_h * scale);
 
     const size_t need = (out_w * out_h * 2 + s_cache_align - 1) & ~(s_cache_align - 1);
-    if (s_snap == nullptr || s_snap_size < need)
+    if (s_snap == nullptr || s_snap_size < need) 
     {
         if (s_snap) heap_caps_free(s_snap);
         s_snap = (uint8_t *)heap_caps_aligned_calloc(s_cache_align, 1, need, MALLOC_CAP_SPIRAM | MALLOC_CAP_DMA);
-        if (s_snap == nullptr)
+        if (s_snap == nullptr) 
         {
             ESP_LOGE(TAG, "Allocation du tampon modele impossible (%u octets)", (unsigned)need);
             return;
@@ -265,7 +289,7 @@ extern "C" void ia_submit_frame(const uint8_t *rgb565, uint32_t w, uint32_t h)
     cfg.byte_swap = 0;
     cfg.mode = PPA_TRANS_MODE_BLOCKING;
 
-    if (ppa_do_scale_rotate_mirror(s_ppa, &cfg) != ESP_OK)
+    if (ppa_do_scale_rotate_mirror(s_ppa, &cfg) != ESP_OK) 
     {
         ESP_LOGE(TAG, "PPA : rotation/reduction impossible");
         s_busy = false;

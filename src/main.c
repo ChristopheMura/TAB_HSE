@@ -1,3 +1,8 @@
+/*
+ * TAB_HSE - controle des EPI sur M5Stack Tab5
+ * Camera -> inference YOLO26 (tache separee) -> decision -> interface LVGL a indicateurs.
+ * Le flux video n'est pas affiche (le rendu plein ecran doublait le temps d'inference).
+ */
 #include <stdio.h>
 #include "sdkconfig.h"
 #include "bsp/esp-bsp.h"
@@ -6,14 +11,20 @@
 #include "app_video.h"
 #include "ia.h"
 #include "ui.h"
+#include "net.h"
 
 #define NUM_BUFS 2
 
 static const char *TAG = "main";
 
+/* Bouton critique : execute dans la tache LVGL, publication non bloquante */
+static int on_critical_button(void)
+{
+    return net_publish_demande_critique();
+}
+
 /* Appele par la tache video a chaque image : on la propose seulement au modele */
-static void camera_frame_cb(uint8_t *camera_buf, uint8_t camera_buf_index, uint32_t camera_buf_hes,
-                            uint32_t camera_buf_ves, size_t camera_buf_len)
+static void camera_frame_cb(uint8_t *camera_buf, uint8_t camera_buf_index, uint32_t camera_buf_hes, uint32_t camera_buf_ves, size_t camera_buf_len)
 {
     (void)camera_buf_index;
     (void)camera_buf_len;
@@ -42,9 +53,18 @@ void app_main(void)
     bsp_display_backlight_on();
 
     ui_init();
+    ui_set_critical_cb(on_critical_button);
+
+    /* Reseau : Wi-Fi via le C6 puis MQTT (non bloquant, reconnexions automatiques) */
+    net_set_status_cb(ui_set_net_status);
+    net_set_autorisation_cb(ui_show_autorisation);
+    if (net_start() != 0) 
+    {
+        ESP_LOGE(TAG, "Demarrage reseau impossible : on continue sans MQTT");
+    }
 
     /* Modele */
-    if (ia_init() != 0)
+    if (ia_init() != 0) 
     {
         ESP_LOGE(TAG, "Modele non charge : arret");
         return;
@@ -55,19 +75,16 @@ void app_main(void)
     bsp_camera_start(NULL);
 
     int fd = app_video_open(BSP_CAMERA_DEVICE, APP_VIDEO_FMT_DRIVER_DEFAULT);
-    if (fd < 0)
-    {
+    if (fd < 0) {
         ESP_LOGE(TAG, "Ouverture de la camera impossible");
         return;
     }
-    if (app_video_set_bufs(fd, NUM_BUFS, NULL) != ESP_OK)
-    {
+    if (app_video_set_bufs(fd, NUM_BUFS, NULL) != ESP_OK) {
         ESP_LOGE(TAG, "Allocation des tampons video impossible");
         return;
     }
     app_video_register_frame_operation_cb(camera_frame_cb);
-    if (app_video_stream_task_start(fd, 0) != ESP_OK)
-    {
+    if (app_video_stream_task_start(fd, 0) != ESP_OK) {
         ESP_LOGE(TAG, "Demarrage du flux video impossible");
         return;
     }
