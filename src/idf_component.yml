@@ -3,3 +3,5 @@ dependencies:
   espressif/yolo26:
     version: "*"
     override_path: "C:/dev/esp-dl/models/yolo26"
+  espressif/esp_wifi_remote: "*"
+  espressif/esp_hosted: ">=3.0.9"
