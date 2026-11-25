@@ -171,7 +171,7 @@ static void ia_task(void *)
             const bool casque = s_decision.state(ppe::IT_HELMET) == ppe::State::PRESENT;
             const bool gilet = s_decision.state(ppe::IT_VEST) == ppe::State::PRESENT;
             const bool chaussures = s_decision.state(ppe::IT_BOOTS) == ppe::State::PRESENT;
-            if (net_publish_detection(casque, gilet, chaussures) == 0) 
+            if (net_publish_detection(casque, gilet, chaussures) == 0)
             {
                 s_last_published = v;                     // sinon on retentera a l'inference suivante
             }

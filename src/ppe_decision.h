@@ -32,10 +32,10 @@ static constexpr int WINDOW_SIZE = 4;
 
 struct Config
 {
-    std::array<bool, IT_COUNT> required{true, false, true, false, true}; // regle metier : a adapter
-    std::array<float, IT_COUNT> thr_present{0.40f, 0.40f, 0.40f, 0.40f, 0.40f};
-    std::array<float, IT_COUNT> thr_absent{0.30f, 0.30f, 0.30f, 0.30f, 0.30f};
-    float thr_person = 0.40f;
+    std::array<bool, IT_COUNT> required{true, false, true, false, false}; // regle metier : a adapter
+    std::array<float, IT_COUNT> thr_present{0.50f, 0.50f, 0.50f, 0.50f, 0.50f};
+    std::array<float, IT_COUNT> thr_absent{0.40f, 0.40f, 0.40f, 0.40f, 0.40f};
+    float thr_person = 0.50f;
     int need_present = 3;   // nb d'observations PRESENT sur la fenetre pour valider
     int need_absent = 2;    // nb d'observations ABSENT sur la fenetre pour refuser
     // Pour le gilet (sans classe negative), ABSENT = non vu alors que la personne l'est :

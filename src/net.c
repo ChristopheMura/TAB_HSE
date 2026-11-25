@@ -31,7 +31,7 @@ static void notify_status(void)
     if (s_status_cb) s_status_cb(s_wifi_ok, s_mqtt_ok);
 }
 
-/* ---------- Reception : {"Critique":{"Autorisation":true}} ---------- */
+/* ---------- Reception : {"id":1,"autorisation":true} ---------- */
 static void handle_autorisation(const char *data, int len)
 {
     char buf[256];
@@ -44,31 +44,33 @@ static void handle_autorisation(const char *data, int len)
     buf[len] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
-    if (root == NULL) 
+    if (root == NULL)
     {
         ESP_LOGW(TAG, "Autorisation : JSON invalide : %s", buf);
         return;
     }
-    const cJSON *crit = cJSON_GetObjectItemCaseSensitive(root, "Critique");
-    const cJSON *val = NULL;
-    if (cJSON_IsObject(crit)) 
+
+    const cJSON *id  = cJSON_GetObjectItemCaseSensitive(root, "id");
+    const cJSON *val = cJSON_GetObjectItemCaseSensitive(root, "Autorisation");
+
+    if (!cJSON_IsNumber(id) || !cJSON_IsBool(val))
     {
-        val = cJSON_GetObjectItemCaseSensitive(crit, "Autorisation");
-        if (val == NULL) 
-        {
-            val = cJSON_GetObjectItemCaseSensitive(crit, "Aurotisation");  // orthographe du cahier des charges
-        }
+        ESP_LOGW(TAG, "Autorisation : champ id ou autorisation absent/invalide : %s", buf);
+        cJSON_Delete(root);
+        return;
     }
-    if (cJSON_IsBool(val)) 
+
+    if ((int)id->valuedouble != NET_DEVICE_ID)
     {
-        const bool ok = cJSON_IsTrue(val);
-        ESP_LOGI(TAG, "Autorisation critique recue : %s", ok ? "true" : "false");
-        if (s_autor_cb) s_autor_cb(ok);
-    } 
-    else 
-    {
-        ESP_LOGW(TAG, "Autorisation : champ Critique.Autorisation absent : %s", buf);
+        ESP_LOGW(TAG, "Autorisation ignoree : id %d, attendu %d", (int)id->valuedouble, NET_DEVICE_ID);
+        cJSON_Delete(root);
+        return;
     }
+
+    const bool ok = cJSON_IsTrue(val);
+    ESP_LOGI(TAG, "Autorisation recue (id %d) : %s", (int)id->valuedouble, ok ? "true" : "false");
+    if (s_autor_cb) s_autor_cb(ok);
+
     cJSON_Delete(root);
 }
 
@@ -102,7 +104,11 @@ static void mqtt_event_handler(void *arg, esp_event_base_t base, int32_t id, voi
         }
         break;
     case MQTT_EVENT_ERROR:
-        ESP_LOGE(TAG, "Erreur MQTT (type %d)", ev->error_handle ? ev->error_handle->error_type : -1);
+        if (ev->error_handle && ev->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED)
+            ESP_LOGE(TAG, "Connexion refusee par le broker, code %d (4 = identifiants, 5 = non autorise)",
+                ev->error_handle->connect_return_code);
+        else
+            ESP_LOGE(TAG, "Erreur MQTT (type %d)", ev->error_handle ? ev->error_handle->error_type : -1);
         break;
     default:
         break;
@@ -115,6 +121,8 @@ static void mqtt_start(void)
     esp_mqtt_client_config_t cfg = {
         .broker.address.uri = NET_MQTT_URI,
         .credentials.client_id = NET_MQTT_CLIENT_ID,
+        .credentials.username = NET_MQTT_USER,
+        .credentials.authentication.password = NET_MQTT_PASS,
     };
     s_mqtt = esp_mqtt_client_init(&cfg);
     esp_mqtt_client_register_event(s_mqtt, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
@@ -216,14 +224,16 @@ static int publish(const char *topic, const char *json)
 
 int net_publish_demande_critique(void)
 {
-    return publish(NET_TOPIC_DEMANDE, "{\"Critique\":{\"Bouton\":true}}");
+    return publish(NET_TOPIC_DEMANDE, "{\"id\":1,\"Bouton\":true}");
 }
 
 int net_publish_detection(bool casque, bool gilet, bool chaussures)
 {
     char json[128];
     snprintf(json, sizeof(json),
-             "{\"Detection\":{\"Casque\":%s,\"Gilet\":%s,\"Chaussures\":%s}}",
-             casque ? "true" : "false", gilet ? "true" : "false", chaussures ? "true" : "false");
+         "{\"id\":1,\"Detection\":{\"Casque\":%s,\"Gilet\":%s,\"Chaussures\":%s}}",
+         casque ? "true" : "false",
+         gilet ? "true" : "false",
+         chaussures ? "true" : "false");
     return publish(NET_TOPIC_DETECTION, json);
 }

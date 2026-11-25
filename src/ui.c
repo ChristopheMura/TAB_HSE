@@ -119,7 +119,7 @@ void ui_init(void)
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *title = lv_label_create(scr);
-    lv_label_set_text(title, "Controle des EPI");
+    lv_label_set_text(title, ("Controle des EPI"));
     lv_obj_set_style_text_font(title, font_mid(), 0);
     lv_obj_set_style_text_color(title, lv_color_white(), 0);
 
